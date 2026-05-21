@@ -1,1 +1,74 @@
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../model/trip_expences_all_models/trip_expences_model.dart';
+
+class TripExpencesFirebase {
+  //create the firestore instance
+  final FirebaseFirestore _tripExpencesDb = FirebaseFirestore.instance;
+  //current  login user authenication
+  final FirebaseAuth _uid = FirebaseAuth.instance;
+  // Get current logged-in user's UID
+  String? get currentUserId => _uid.currentUser?.uid;
+
+  //fetch all user data from the firestore function
+  Future<List<TripExpencesModel>> getTripsData() async {
+    if (currentUserId == null) {
+      print('no user login');
+      return [];
+    }
+    print('CURRENT USER ID: $currentUserId');
+    //get the data to the sanpshot
+    QuerySnapshot snapshot = await _tripExpencesDb
+        .collection('users') // top level collection
+        .doc(currentUserId) // your user document
+        .collection('trips-expences') // then subcollection
+        .get();
+
+    print('DOCUMENTS FOUND: ${snapshot.docs.length}');
+
+    //convert each document to a tripmodel(sending data to the tripexpncesmodel to uses)
+    return snapshot.docs.map((doc) {
+      return TripExpencesModel.fromMap(
+        doc.data() as Map<String, dynamic>,
+        doc.id,
+      );
+    }).toList();
+  }
+
+  //function for the delete a specific user data
+  Future<void> deleteUserstripExpencesDocument(String id) async {
+    if (currentUserId == null) {
+      return;
+    }
+    await _tripExpencesDb
+        .collection('users')
+        .doc(currentUserId)
+        .collection('trips-expences')
+        .doc(id)
+        .delete();
+
+    print('document delete succsfully');
+  }
+
+  //function for sending updated data to the firebase
+  Future<bool> sendUpdatedDataToTheFirebase(
+    String id,
+    TripExpencesModel updatedTrip,
+  ) async {
+    try {
+      if (currentUserId == null) {
+        return false;
+      }
+      await _tripExpencesDb
+          .collection('users')
+          .doc(currentUserId)
+          .collection('trips-expences')
+          .doc(id)
+          .update(updatedTrip.toMap());
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+}
